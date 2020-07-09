@@ -5,72 +5,67 @@ using Photon.Realtime;
 
 public class NetworkManager : MonoBehaviourPunCallbacks
 {
-    public Text statusText;
-    public InputField nicknameInput, roomnameInput;
+    public Text infoText;
+    public Button connectButton;
+    private string gameVersion = "";
 
-    void Awake() => Screen.SetResolution(1280, 720, false);
-
-    void Update() => statusText.text = PhotonNetwork.NetworkClientState.ToString();
-
-    public void Connect() => PhotonNetwork.ConnectUsingSettings();
-
-    public override void OnConnectedToMaster()
+    void Awake()
     {
-        print("서버 접속 완료");
-        PhotonNetwork.LocalPlayer.NickName = nicknameInput.text;
+        Screen.SetResolution(1280, 720, false);
     }
 
-    public void Disconnect() => PhotonNetwork.Disconnect();
-
-    public override void OnDisconnected(DisconnectCause cause) => print("연결 끊김");
-
-    public void JoinLobby() => PhotonNetwork.JoinLobby();
-
-    public override void OnJoinedLobby() => print("로비 접속 완료");
-
-    public void CreateRoom() => PhotonNetwork.CreateRoom(roomnameInput.text, new RoomOptions { MaxPlayers = 2 });
-
-    public void JoinRoom() => PhotonNetwork.JoinRoom(roomnameInput.text);
-
-    public void JoinOrCreateRoom() => PhotonNetwork.JoinOrCreateRoom(roomnameInput.text, new RoomOptions { MaxPlayers = 2 }, null);
-
-    public void JoinRandomRoom() => PhotonNetwork.JoinRandomRoom();
-
-    public void LeaveRoom() => PhotonNetwork.LeaveRoom();
-
-    public override void OnCreatedRoom() => print("방 만들기 완료");
-
-    public override void OnJoinedRoom() => print(" 방 참가 완료");
-
-    public override void OnCreateRoomFailed(short returnCode, string message) => print("방 만들기 실패");
-
-    public override void OnJoinRoomFailed(short returnCode, string message) => print("방 참가 실패");
-
-    public override void OnJoinRandomFailed(short returnCode, string message) => print("방 랜덤 참가 실패");
-
-    [ContextMenu("정보")]
-    void Info()
+    // 연결 시도
+    void Start()
     {
-        if (PhotonNetwork.InRoom)
-        {
-            print("현재 방 이름 : " + PhotonNetwork.CurrentRoom.Name);
-            print("현재 방 인원수 : " + PhotonNetwork.CurrentRoom.PlayerCount);
-            print("현재 방 최대인원수 : " + PhotonNetwork.CurrentRoom.MaxPlayers);
+        PhotonNetwork.GameVersion = gameVersion;
+        PhotonNetwork.ConnectUsingSettings();
+        infoText.text = "마스터 서버에 접속중...";
+        connectButton.interactable = false;
+    }
 
-            string playerStr = "방에 있는 플레이어 목록 : ";
-            for (int i = 0; i < PhotonNetwork.PlayerList.Length; i++)
-            {
-                playerStr += PhotonNetwork.PlayerList[i].NickName + ", ";
-            }
-            print(playerStr);
+    // 연결에 성공한 경우
+    public override void OnConnectedToMaster()
+    {
+        infoText.text = "온라인 : 마스터 서버와 연결됨";
+        connectButton.interactable = true;
+    }
+
+    // 연결이 끊긴 경우
+    public override void OnDisconnected(DisconnectCause cause)
+    {
+        PhotonNetwork.ConnectUsingSettings();
+        infoText.text = "오프라인 : 마스터 서버와 연결 실패 \n 접속 재시도 중...";
+        connectButton.interactable = false;
+    }
+
+    // 방에 입장 시도
+    public void OnConnect()
+    {
+        connectButton.interactable = false;
+
+        if (PhotonNetwork.IsConnected)
+        {
+            infoText.text = "랜덤방에 접속...";
+            PhotonNetwork.JoinRandomRoom();
         }
         else
         {
-            print("접속한 인원수 : " + PhotonNetwork.CountOfPlayers);
-            print("방 개수 : " + PhotonNetwork.CountOfRooms);
-            print("모든 방에 있는 인원수 : " + PhotonNetwork.CountOfPlayersInRooms);
-            print("로비에 있는지? : " + PhotonNetwork.InLobby);
-            print("연결됐는지? : " + PhotonNetwork.IsConnected);
+            PhotonNetwork.ConnectUsingSettings();
+            infoText.text = "오프라인 : 마스터 서버와 연결 실패 \n 접속 재시도 중...";
         }
+    }
+
+    // 방에 참가가 완료된 경우 자동 실행
+    public override void OnJoinedRoom()
+    {
+        infoText.text = "방 참가 성공";
+        PhotonNetwork.LoadLevel("GameScene");
+    }
+
+    // 방이 없어 랜덤 입장에 실패한 경우 자동 실행
+    public override void OnJoinRandomFailed(short returnCode, string message)
+    {
+        infoText.text = "빈 방이 없어 새로운 방 생성중...";
+        PhotonNetwork.CreateRoom(null, new RoomOptions { MaxPlayers = 4 });
     }
 }
